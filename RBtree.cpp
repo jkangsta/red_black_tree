@@ -10,20 +10,22 @@ RBtree::~RBtree()
 	destroy_tree();
 }
 
-//////////////////////////////////////////////////////////
-//						BT Property						//
-//////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////
+/********** Binary Tree Property **********/
 
-void RBree::destroy_tree()
+void RBtree::destroy_tree()
 {
 	destroy_tree( root );
 }
 
-void RBtree::insert( int key )
+node* RBtree::insert( int key )
 {
-	if( root == NULL ) { create_node( key, NULL, root ); }
-	else { insert( key, root ); }
+	if( root == NULL )
+	{
+		create_node( key, NULL, root );
+		return root;
+	}
+	
+	return insert( key, root );
 }
 
 node* RBtree::search( int key )
@@ -46,118 +48,191 @@ void RBtree::create_node( int key, node* parent, node* leaf )
 	leaf = new node();
 
 	leaf->key_value = key;
-	left->parent = parent;
+	leaf->color = red;
+	leaf->parent = parent;
 	leaf->left = NULL;
 	leaf->right = NULL;
 }
 
-void RBtree::insert( int key, node* leaf )
+node* RBtree::insert( int key, node* leaf )
 {
+	if( key == leaf->key_value )
+	{
+		return NULL;
+	}
+
 	if( key < leaf->key_value )
 	{
-		if( leaf->left == NULL ) { create_node( key, leaf, leaf->left ); }
-		else { insert( key, leaf->left ); }
+		if( leaf->left == NULL )
+		{ 
+			create_node( key, leaf, leaf->left );
+			return leaf->left;
+		}
+		return insert( key, leaf->left );
 	}
 	else
 	{
-		// ( key >= leaf->key_value )
-		if( leaf->right == NULL ) { create_node( key, leaf, leaf->right ); }
-		else { insert( key, leaf->right ); }
+		if( leaf->right == NULL )
+		{
+			create_node( key, leaf, leaf->right );
+			return leaf->right;
+		}
+		return insert( key, leaf->right );
 	}
 }
 
-node* search( int key, node* leaf )
+node* RBtree::search( int key, node* leaf )
 {
-	if( leaf == NULL ) { return NULL; }
-	if( key < leaf->key_value ) { return search( key, leaf->left ); }
-	if( key > leaf->key_value ) { return search( key, leaf->right ); }
+	if( leaf == NULL )
+	{
+		return NULL;
+	}
+
+	if( key < leaf->key_value )
+	{
+		return search( key, leaf->left );
+	}
+
+	if( key > leaf->key_value )
+	{
+		return search( key, leaf->right );
+	}
 
 	return leaf;
 }
 
-//////////////////////////////////////////////////////////
-//						RB Property						//
-//////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////
+/********** Red Black Tree Property **********/
 
-void RBtree::left_rotate()
+void RBtree::rb_insert( int key )
 {
-	node y;
-	y = x->right;
-
-	/* Turn y's left sub-tree into x's right sub-tree */
-	x->right = y->left;
-	if ( y->left != NULL )
-		y->left->parent = x;
-
-	/* y's new parent was x's parent */
-	y->parent = x->parent;
-
-	/* Set the parent to point to y instead of x */
-	/* First see whether we're at the root */
-	if( x->parent == NULL )
+	node* n = insert( key );
+	if( n == NULL )
 	{
-		T->root = y;
+		return;
+	}
+
+	rb_insert_case1( n );
+}
+
+void RBtree::rb_insert_case1( node* n )
+{
+	if( n->parent == NULL )
+	{
+		n->color = black;
 	}
 	else
 	{
-		if ( x == (x->parent)->left )
-		{
-			/* x was on the left of its parent */
-			x->parent->left = y;
-		}
-		else
-		{
-			/* x must have been on the right */
-			x->parent->right = y;
-		}
+		rb_insert_case2( n );
 	}
-	
-	/* Finally, put x on y's left */
-	y->left = x;
-	x->parent = y;
 }
 
-void RBtree::rb_insert()
+void RBtree::rb_insert_case2( node* n )
 {
-	/* Insert in the tree in the usual way */
-	tree_insert( T, x );
-
-	/* Now restore the red-black property */
-	x->colour = red;
-	while ( (x != T->root) && (x->parent->colour == red) ) {
-		if ( x->parent == x->parent->parent->left ) {
-			/* If x's parent is a left, y is x's right 'uncle' */
-			y = x->parent->parent->right;
-			if ( y->colour == red ) {
-				/* case 1 - change the colours */
-				x->parent->colour = black;
-				y->colour = black;
-				x->parent->parent->colour = red;
-				/* Move x up the tree */
-				x = x->parent->parent;
-			}
-			else {
-				/* y is a black node */
-				if ( x == x->parent->right ) {
-					/* and x is to the right */ 
-					/* case 2 - move x up and rotate */
-					x = x->parent;
-					left_rotate( T, x );
-				}
-				/* case 3 */
-				x->parent->colour = black;
-				x->parent->parent->colour = red;
-				right_rotate( T, x->parent->parent );
-			}
-		}
-		else {
-			/* repeat the "if" part with right and left
-			 *               exchanged */
-		}
+	if( n->parent->color == black )
+	{
+		return;
 	}
-
-	/* Colour the root black */
-	T->root->colour = black;
+	else
+	{
+		rb_insert_case3( n );
+	}
 }
 
+void RBtree::rb_insert_case3( node* n )
+{
+	node* u = getUncle( n );
+
+	if( ( u != NULL ) && ( u->color == red ) )
+	{
+		n->parent->color = black;
+		u->color = black;
+
+		node* g = getGrandParent( n );
+		g->color = red;
+		rb_insert_case1( g );
+	}
+	else
+	{
+		rb_insert_case4( n );
+	}
+}
+
+void RBtree::rb_insert_case4( node* n )
+{
+	node* g = getGrandParent( n );
+
+	if( ( n == n->parent->right ) && ( n->parent == g->left ) )
+	{
+		rotate_left( n->parent );
+		n = n->left;
+	}
+	else if( ( n == n->parent->left ) && ( n->parent == g->right ) )
+	{
+		rotate_right( n->parent );
+		n = n->right;
+	}
+
+	rb_insert_case5( n );
+}
+
+void RBtree::rb_insert_case5( node* n )
+{
+	node* g = getGrandParent( n );
+	n->parent->color = black;
+	g->color = red;
+
+	if( n == n->parent->left )
+	{
+		rotate_right( g );
+	}
+	else
+	{
+		rotate_left( g );
+	}
+}
+
+void RBtree::rotate_left( node* n )
+{
+	node* saved_p = n;
+	node* saved_left_n = n->right->left;
+
+	n = n->right;
+	n->right->left = saved_p;
+	saved_p->right = saved_left_n;
+}
+
+void RBtree::rotate_right( node* n )
+{
+	node* saved_p = n;
+	node* saved_right_n = n->left->right;
+
+	n = n->left;
+	n->left->right = saved_p;
+	saved_p->left = saved_right_n;
+}
+
+node* RBtree::getGrandParent( node* n )
+{
+	if( ( n != NULL ) && ( n->parent != NULL ) )
+	{
+		return n->parent->parent;
+	}
+
+	return NULL;
+}
+
+node* RBtree::getUncle( node* n )
+{
+	node* g = getGrandParent( n );
+	if( g = NULL )
+	{
+		return NULL;
+	}
+
+	if( n->parent == g->left )
+	{
+		return g->right;
+	}
+
+	return g->left;
+}
